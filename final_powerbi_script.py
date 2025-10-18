@@ -125,7 +125,7 @@ def extract_budget_data():
                         
                         # Calcular métricas
                         difference = actual_float - budget_float
-                        percentage_diff = (difference / budget_float * 100) if budget_float != 0 else 0
+                        percentage_diff = ((actual_float / budget_float) - 1) * 100 if budget_float != 0 else 0
                         
                         # Determinar status
                         status = "Acima do Budget" if difference >= 0 else "Abaixo do Budget"
