@@ -55,13 +55,13 @@ def extract_budget_data():
     
     # Descrições predefinidas para CHILE (baseadas no padrão dos outros sheets)
     # EXCLUINDO todas as que contêm % pois são porcentagens, não valores absolutos
+    # EXCLUINDO também Item_19 até Item_24 conforme solicitado
     chile_descriptions = [
         'ORDERS RECEIVED', 'REVENUES', 'REBATES', 'REBATES ANUAL',
         'SALES INCENTIVE', 'GROSS PROFIT',
         'GROSS PROFIT w/ rebates & incentives', 'COMISSIONS', 'SALES EXPENSES',
         'MARKETING EXPENSES', 'GENERAL AND ADMINISTRATION EXPENSES', 'SG&A',
-        'FH', 'SG&A w/funded head', 'OH', 'TOTAL OPERATIONAL EBITDA',
-        'Item_19', 'Item_20', 'Item_21', 'Item_22', 'Item_23', 'Item_24'
+        'FH', 'SG&A w/funded head', 'OH', 'TOTAL OPERATIONAL EBITDA'
     ]
     
     all_data = []
@@ -100,7 +100,8 @@ def extract_budget_data():
                     if idx < len(chile_descriptions):
                         description = chile_descriptions[idx]
                     else:
-                        description = f'Item_{idx}'
+                        # Não processar itens além da lista predefinida para CHILE
+                        continue
                 else:
                     description = str(row[config['description_col']]) if pd.notna(row[config['description_col']]) else ''
                 
