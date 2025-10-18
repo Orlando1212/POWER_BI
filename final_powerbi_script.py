@@ -135,7 +135,6 @@ def extract_budget_data():
                             'Descricao': description.strip(),
                             'Budget_2025': budget_float,
                             'Actual_2025': actual_float,
-                            'Diferenca': difference,
                             'Percentual_Diferenca': percentage_diff,
                             'Status': status,
                             'Tipo': 'Budget' if 'BUDGET' in description.upper() else 'Item'
@@ -176,110 +175,37 @@ def create_final_dataset(all_data):
     print(f"📊 Total de registros: {len(final_df)}")
     print(f"📁 Arquivo principal: {output_file}")
     
-    # Criar resumo estatístico
-    create_statistical_summary(final_df)
-    
-    # Mostrar resumo por unidade
-    show_unit_summary(final_df)
-    
-    # Mostrar insights principais
-    show_key_insights(final_df)
+    # Mostrar dados por unidade (Budget vs Actual)
+    show_unit_data(final_df)
     
     return final_df
 
-def create_statistical_summary(df):
+def show_unit_data(df):
     """
-    Cria resumo estatístico dos dados
-    """
-    
-    # Análise por unidade
-    summary = df.groupby('Unidade').agg({
-        'Budget_2025': ['sum', 'mean', 'std'],
-        'Actual_2025': ['sum', 'mean', 'std'],
-        'Diferenca': ['sum', 'mean', 'std'],
-        'Percentual_Diferenca': ['mean', 'min', 'max', 'std']
-    }).round(2)
-    
-    # Salvar resumo
-    summary.to_csv('budget_analysis_summary.csv')
-    print(f"📈 Resumo estatístico salvo em: budget_analysis_summary.csv")
-    
-    # Top diferenças
-    top_negative = df.nsmallest(5, 'Diferenca')[['Unidade', 'Descricao', 'Budget_2025', 'Actual_2025', 'Diferenca', 'Percentual_Diferenca']]
-    top_positive = df.nlargest(5, 'Diferenca')[['Unidade', 'Descricao', 'Budget_2025', 'Actual_2025', 'Diferenca', 'Percentual_Diferenca']]
-    
-    # Salvar análises específicas
-    top_negative.to_csv('top_negative_differences.csv', index=False)
-    top_positive.to_csv('top_positive_differences.csv', index=False)
-    
-    print(f"📋 Análises específicas salvas:")
-    print(f"   - top_negative_differences.csv")
-    print(f"   - top_positive_differences.csv")
-
-def show_unit_summary(df):
-    """
-    Mostra resumo por unidade
+    Mostra dados Budget vs Actual para cada linha, separado por unidade
     """
     
-    print(f"\n📈 Resumo por unidade:")
-    print("-" * 50)
+    print(f"\n📊 DADOS POR UNIDADE - BUDGET vs ACTUAL:")
+    print("=" * 80)
     
-    summary = df.groupby('Unidade').agg({
-        'Budget_2025': 'sum',
-        'Actual_2025': 'sum',
-        'Diferenca': 'sum',
-        'Percentual_Diferenca': 'mean'
-    }).round(2)
-    
-    for unit in summary.index:
-        budget_total = summary.loc[unit, 'Budget_2025']
-        actual_total = summary.loc[unit, 'Actual_2025']
-        diff_total = summary.loc[unit, 'Diferenca']
-        avg_pct = summary.loc[unit, 'Percentual_Diferenca']
+    # Agrupar por unidade
+    for unit in df['Unidade'].unique():
+        unit_data = df[df['Unidade'] == unit].sort_values('Descricao')
         
-        print(f"🏢 {unit}:")
-        print(f"   Budget Total: ${budget_total:,.2f}M")
-        print(f"   Actual Total: ${actual_total:,.2f}M")
-        print(f"   Diferença: ${diff_total:,.2f}M ({avg_pct:.1f}%)")
+        print(f"\n🏢 UNIDADE: {unit}")
+        print("-" * 60)
+        print(f"{'Descrição':<35} {'Budget 2025':<12} {'Actual 2025':<12} {'Diferença %':<12}")
+        print("-" * 60)
+        
+        for _, row in unit_data.iterrows():
+            desc = row['Descricao'][:32] + "..." if len(row['Descricao']) > 35 else row['Descricao']
+            budget = f"${row['Budget_2025']:,.2f}M"
+            actual = f"${row['Actual_2025']:,.2f}M"
+            pct = f"{row['Percentual_Diferenca']:+.1f}%"
+            
+            print(f"{desc:<35} {budget:<12} {actual:<12} {pct:<12}")
+        
         print()
-
-def show_key_insights(df):
-    """
-    Mostra insights principais dos dados
-    """
-    
-    print(f"🔍 Insights Principais:")
-    print("-" * 50)
-    
-    # Total geral
-    total_budget = df['Budget_2025'].sum()
-    total_actual = df['Actual_2025'].sum()
-    total_diff = df['Diferenca'].sum()
-    overall_pct = (total_diff / total_budget * 100) if total_budget != 0 else 0
-    
-    print(f"💰 Total Geral:")
-    print(f"   Budget: ${total_budget:,.2f}M")
-    print(f"   Actual: ${total_actual:,.2f}M")
-    print(f"   Diferença: ${total_diff:,.2f}M ({overall_pct:.1f}%)")
-    
-    # Status geral
-    above_budget = len(df[df['Status'] == 'Acima do Budget'])
-    below_budget = len(df[df['Status'] == 'Abaixo do Budget'])
-    
-    print(f"\n📊 Status dos Itens:")
-    print(f"   Acima do Budget: {above_budget} itens")
-    print(f"   Abaixo do Budget: {below_budget} itens")
-    
-    # Maiores diferenças
-    print(f"\n🔴 Top 3 Maiores Diferenças Negativas:")
-    top_negative = df.nsmallest(3, 'Diferenca')
-    for _, row in top_negative.iterrows():
-        print(f"   {row['Unidade']} - {row['Descricao']}: ${row['Diferenca']:,.2f}M ({row['Percentual_Diferenca']:.1f}%)")
-    
-    print(f"\n🟢 Top 3 Maiores Diferenças Positivas:")
-    top_positive = df.nlargest(3, 'Diferenca')
-    for _, row in top_positive.iterrows():
-        print(f"   {row['Unidade']} - {row['Descricao']}: ${row['Diferenca']:,.2f}M ({row['Percentual_Diferenca']:.1f}%)")
 
 def create_powerbi_instructions():
     """
@@ -456,9 +382,6 @@ def main():
             
             print(f"\n📁 Arquivos gerados:")
             print(f"   🎯 budget_data_for_powerbi.csv (dados principais)")
-            print(f"   📊 budget_analysis_summary.csv (resumo estatístico)")
-            print(f"   🔴 top_negative_differences.csv (maiores diferenças negativas)")
-            print(f"   🟢 top_positive_differences.csv (maiores diferenças positivas)")
             print(f"   📋 powerbi_setup_instructions.txt (instruções completas)")
             
             print(f"\n🎯 Próximos passos:")

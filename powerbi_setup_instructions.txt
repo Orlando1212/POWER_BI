@@ -1,0 +1,138 @@
+
+# 📊 Guia Completo para Dashboard Power BI - Análise de Budget 2025
+
+## 🚀 Passos para Importação
+
+### 1. Importar Dados
+1. Abra o Power BI Desktop
+2. Clique em "Obter Dados" > "Texto/CSV"
+3. Selecione o arquivo `budget_data_for_powerbi.csv`
+4. Clique em "Carregar"
+
+### 2. Configurar Medidas DAX
+
+```DAX
+# Medidas Principais
+Budget Total = SUM(budget_data_for_powerbi[Budget_2025])
+Actual Total = SUM(budget_data_for_powerbi[Actual_2025])
+Diferença Total = SUM(budget_data_for_powerbi[Diferenca])
+Percentual Médio = AVERAGE(budget_data_for_powerbi[Percentual_Diferenca])
+
+# Medidas Calculadas
+Variação % = DIVIDE([Diferença Total], [Budget Total], 0) * 100
+Performance = IF([Diferença Total] >= 0, "Acima do Budget", "Abaixo do Budget")
+
+# Medidas por Unidade
+Budget por Unidade = CALCULATE([Budget Total], ALLEXCEPT(budget_data_for_powerbi, budget_data_for_powerbi[Unidade]))
+Actual por Unidade = CALCULATE([Actual Total], ALLEXCEPT(budget_data_for_powerbi, budget_data_for_powerbi[Unidade]))
+```
+
+### 3. Visualizações Recomendadas
+
+#### 📈 Dashboard Principal
+- **Cartões (Topo):**
+  - Budget Total
+  - Actual Total  
+  - Diferença Total
+  - Variação %
+
+- **Gráfico de Barras (Centro):**
+  - Eixo X: Unidade
+  - Valores: Budget Total, Actual Total
+  - Legenda: Budget vs Actual
+
+- **Gráfico de Pizza (Lado):**
+  - Categoria: Unidade
+  - Valores: Budget Total
+
+- **Tabela (Inferior):**
+  - Colunas: Unidade, Descrição, Budget 2025, Actual 2025, Diferença, Percentual Diferença, Status
+
+#### 📊 Dashboard Detalhado
+- **Gráfico de Funil:** Performance por Unidade
+- **Gráfico de Linha:** Percentual de Diferença por Item
+- **Gráfico de Dispersão:** Budget vs Actual
+- **Tabela Matricial:** Análise por Unidade e Tipo
+
+### 4. Filtros e Interatividade
+
+#### Filtros Principais:
+- **Unidade:** DISTRIB, PROJECTS, DC, CHILE
+- **Status:** Acima do Budget, Abaixo do Budget
+- **Tipo:** Budget, Item
+- **Faixa de Percentual:** Slider para percentual de diferença
+
+#### Interatividade:
+- Cross-filtering entre visualizações
+- Drill-through para detalhes por unidade
+- Tooltips com informações adicionais
+- Botões de navegação entre páginas
+
+### 5. Formatação e Design
+
+#### Cores:
+- Verde: Valores positivos (acima do budget)
+- Vermelho: Valores negativos (abaixo do budget)
+- Azul: Valores neutros
+
+#### Formatação de Números:
+- Valores monetários: $#,##0.00M
+- Percentuais: 0.0%
+- Números decimais: #,##0.00
+
+#### Layout:
+- Tema: Claro/Moderno
+- Fonte: Segoe UI
+- Tamanho: Responsivo
+
+### 6. Alertas e Insights
+
+#### Alertas Automáticos:
+- Itens com diferença > 50% (negativa)
+- Unidades com performance < -60%
+- Valores orçamentários não utilizados
+
+#### KPIs:
+- Taxa de utilização do budget
+- Performance por unidade
+- Variação média por categoria
+
+### 7. Atualização de Dados
+
+#### Configuração de Atualização:
+1. Vá em "Início" > "Atualizar"
+2. Configure atualização automática (se necessário)
+3. Defina fonte de dados para atualização
+
+#### Manutenção:
+- Execute o script Python periodicamente
+- Substitua o arquivo CSV
+- Atualize o Power BI
+
+## 📋 Checklist de Implementação
+
+- [ ] Importar dados CSV
+- [ ] Configurar medidas DAX
+- [ ] Criar visualizações principais
+- [ ] Configurar filtros
+- [ ] Aplicar formatação
+- [ ] Testar interatividade
+- [ ] Configurar alertas
+- [ ] Publicar dashboard
+- [ ] Configurar atualizações
+
+## 🎯 Objetivos do Dashboard
+
+1. **Visão Geral:** Performance geral do budget vs actual
+2. **Análise por Unidade:** Comparação entre DISTRIB, PROJECTS, DC, CHILE
+3. **Detalhamento:** Análise item por item
+4. **Tendências:** Identificação de padrões e outliers
+5. **Alertas:** Identificação de desvios significativos
+
+## 📞 Suporte
+
+Para dúvidas ou problemas:
+1. Verifique se o arquivo CSV está correto
+2. Confirme se as medidas DAX estão funcionando
+3. Teste as visualizações individualmente
+4. Verifique os filtros aplicados
