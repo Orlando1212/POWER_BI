@@ -56,8 +56,9 @@ def extract_budget_data():
     # Descrições predefinidas para CHILE (baseadas no padrão dos outros sheets)
     # EXCLUINDO todas as que contêm % pois são porcentagens, não valores absolutos
     # EXCLUINDO também Item_19 até Item_24 conforme solicitado
+    # EXCLUINDO ORDERS RECEIVED conforme solicitado
     chile_descriptions = [
-        'ORDERS RECEIVED', 'REVENUES', 'REBATES', 'REBATES ANUAL',
+        'REVENUES', 'REBATES', 'REBATES ANUAL',
         'SALES INCENTIVE', 'GROSS PROFIT',
         'GROSS PROFIT w/ rebates & incentives', 'COMISSIONS', 'SALES EXPENSES',
         'MARKETING EXPENSES', 'GENERAL AND ADMINISTRATION EXPENSES', 'SG&A',
@@ -111,6 +112,7 @@ def extract_budget_data():
                 # Critérios de filtragem - EXCLUIR todas as linhas com % na descrição
                 is_valid = (
                     '%' not in description and  # SEMPRE excluir linhas com %
+                    'ORDERS RECEIVED' not in description and  # Remover ORDERS RECEIVED de todas as unidades
                     pd.notna(actual_value) and pd.notna(budget_value) and
                     str(actual_value) not in ['MUSD', 'nan'] and
                     str(budget_value) not in ['MUSD', 'nan'] and
