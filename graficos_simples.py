@@ -38,11 +38,12 @@ def create_budget_vs_actual_charts(df):
         'CHILE': '#FF6B6B',
         'DC': '#4ECDC4', 
         'DISTRIB': '#45B7D1',
-        'PROJECTS': '#96CEB4'
+        'PROJECTS': '#96CEB4',
+        'CONSOLIDADO': '#9B59B6'
     }
     
-    # Obter unidades únicas
-    units = df['Unidade'].unique()
+    # Obter unidades únicas (apenas por unidade, não consolidado)
+    units = df[df['Tipo_Analise'] == 'Por Unidade']['Unidade'].unique()
     
     # Criar figura com subplots para cada unidade
     fig, axes = plt.subplots(2, 2, figsize=(20, 16))
@@ -111,8 +112,8 @@ def create_difference_percentage_charts(df):
         else:
             return '#E74C3C'  # Vermelho para negativo
     
-    # Obter unidades únicas
-    units = df['Unidade'].unique()
+    # Obter unidades únicas (apenas por unidade, não consolidado)
+    units = df[df['Tipo_Analise'] == 'Por Unidade']['Unidade'].unique()
     
     # Criar figura com subplots para cada unidade
     fig, axes = plt.subplots(2, 2, figsize=(20, 16))
@@ -165,6 +166,133 @@ def create_difference_percentage_charts(df):
     
     return fig
 
+def create_consolidated_charts(df):
+    """
+    Cria gráficos consolidados com os maiores valores
+    """
+    
+    # Filtrar apenas dados consolidados
+    consolidated_data = df[df['Tipo_Analise'] == 'Consolidado'].copy()
+    
+    # Ordenar por Budget (maior para menor)
+    consolidated_data = consolidated_data.sort_values('Budget_2025', ascending=True)
+    
+    # Criar figura com 4 subplots (2x2)
+    fig, axes = plt.subplots(2, 2, figsize=(20, 16))
+    fig.suptitle('📊 Dados Consolidados - Top Maiores Valores', fontsize=24, fontweight='bold')
+    axes = axes.flatten()
+    
+    # 1. Gráfico Budget vs Actual Consolidado
+    ax1 = axes[0]
+    y_pos = np.arange(len(consolidated_data))
+    
+    bars_budget = ax1.barh(y_pos - 0.2, consolidated_data['Budget_2025'], 
+                          height=0.4, label='Budget 2025', 
+                          color='#9B59B6', alpha=0.8)
+    
+    bars_actual = ax1.barh(y_pos + 0.2, consolidated_data['Actual_2025'], 
+                          height=0.4, label='Actual 2025', 
+                          color='#E67E22', alpha=0.8)
+    
+    ax1.set_yticks(y_pos)
+    ax1.set_yticklabels([desc[:30] + '...' if len(desc) > 30 else desc 
+                        for desc in consolidated_data['Descricao']], fontsize=10)
+    ax1.set_xlabel('Valor (MUSD)', fontsize=12, fontweight='bold')
+    ax1.set_title('💰 Budget vs Actual Consolidado', fontsize=16, fontweight='bold')
+    ax1.legend()
+    ax1.grid(True, alpha=0.3, axis='x')
+    
+    # Adicionar valores nas barras
+    for j, (budget, actual) in enumerate(zip(consolidated_data['Budget_2025'], consolidated_data['Actual_2025'])):
+        ax1.text(budget + 0.5, y_pos[j] - 0.2, f'${budget:.2f}M', 
+                va='center', ha='left', fontsize=9, fontweight='bold')
+        ax1.text(actual + 0.5, y_pos[j] + 0.2, f'${actual:.2f}M', 
+                va='center', ha='left', fontsize=9, fontweight='bold')
+    
+    ax1.invert_yaxis()
+    
+    # 2. Gráfico Top Maiores Budgets
+    ax2 = axes[1]
+    top_budget = consolidated_data.nlargest(10, 'Budget_2025')
+    y_pos2 = np.arange(len(top_budget))
+    
+    bars2 = ax2.barh(y_pos2, top_budget['Budget_2025'], 
+                    color='#9B59B6', alpha=0.8)
+    
+    ax2.set_yticks(y_pos2)
+    ax2.set_yticklabels([desc[:25] + '...' if len(desc) > 25 else desc 
+                        for desc in top_budget['Descricao']], fontsize=9)
+    ax2.set_xlabel('Valor (MUSD)', fontsize=12, fontweight='bold')
+    ax2.set_title('🏆 Top 10 Maiores Budgets', fontsize=16, fontweight='bold')
+    ax2.grid(True, alpha=0.3, axis='x')
+    
+    # Adicionar valores nas barras
+    for j, budget in enumerate(top_budget['Budget_2025']):
+        ax2.text(budget + 0.5, y_pos2[j], f'${budget:.2f}M', 
+                va='center', ha='left', fontsize=9, fontweight='bold')
+    
+    ax2.invert_yaxis()
+    
+    # 3. Gráfico Top Maiores Actual
+    ax3 = axes[2]
+    top_actual = consolidated_data.nlargest(10, 'Actual_2025')
+    y_pos3 = np.arange(len(top_actual))
+    
+    bars3 = ax3.barh(y_pos3, top_actual['Actual_2025'], 
+                    color='#E67E22', alpha=0.8)
+    
+    ax3.set_yticks(y_pos3)
+    ax3.set_yticklabels([desc[:25] + '...' if len(desc) > 25 else desc 
+                        for desc in top_actual['Descricao']], fontsize=9)
+    ax3.set_xlabel('Valor (MUSD)', fontsize=12, fontweight='bold')
+    ax3.set_title('🏆 Top 10 Maiores Actual', fontsize=16, fontweight='bold')
+    ax3.grid(True, alpha=0.3, axis='x')
+    
+    # Adicionar valores nas barras
+    for j, actual in enumerate(top_actual['Actual_2025']):
+        ax3.text(actual + 0.5, y_pos3[j], f'${actual:.2f}M', 
+                va='center', ha='left', fontsize=9, fontweight='bold')
+    
+    ax3.invert_yaxis()
+    
+    # 4. Gráfico Diferença Percentual Consolidada
+    ax4 = axes[3]
+    
+    # Configurar cores baseadas na performance
+    def get_performance_color(value):
+        if value >= 0:
+            return '#2ECC71'  # Verde para positivo
+        else:
+            return '#E74C3C'  # Vermelho para negativo
+    
+    y_pos4 = np.arange(len(consolidated_data))
+    colors = [get_performance_color(pct) for pct in consolidated_data['Percentual_Diferenca']]
+    
+    bars4 = ax4.barh(y_pos4, consolidated_data['Percentual_Diferenca'], 
+                    color=colors, alpha=0.7)
+    
+    ax4.set_yticks(y_pos4)
+    ax4.set_yticklabels([desc[:25] + '...' if len(desc) > 25 else desc 
+                        for desc in consolidated_data['Descricao']], fontsize=9)
+    ax4.set_xlabel('Diferença Percentual (%)', fontsize=12, fontweight='bold')
+    ax4.set_title('📈 Diferença Percentual Consolidada', fontsize=16, fontweight='bold')
+    ax4.grid(True, alpha=0.3, axis='x')
+    ax4.axvline(x=0, color='black', linestyle='-', alpha=0.5, linewidth=2)
+    
+    # Adicionar valores nas barras
+    for j, (bar, pct) in enumerate(zip(bars4, consolidated_data['Percentual_Diferenca'])):
+        width = bar.get_width()
+        ax4.text(width + (2 if width >= 0 else -2), bar.get_y() + bar.get_height()/2,
+                f'{pct:+.1f}%', ha='left' if width >= 0 else 'right', 
+                va='center', fontsize=9, fontweight='bold')
+    
+    ax4.invert_yaxis()
+    
+    plt.tight_layout()
+    plt.subplots_adjust(top=0.93)
+    
+    return fig
+
 def main():
     """
     Função principal
@@ -190,6 +318,12 @@ def main():
     fig2.savefig('diferenca_percentual_por_unidade.png', dpi=300, bbox_inches='tight')
     print("✅ Gráfico salvo como: diferenca_percentual_por_unidade.png")
     
+    # 3. Gráficos Consolidados
+    print("📊 Criando gráficos consolidados...")
+    fig3 = create_consolidated_charts(df)
+    fig3.savefig('graficos_consolidados.png', dpi=300, bbox_inches='tight')
+    print("✅ Gráfico salvo como: graficos_consolidados.png")
+    
     # Mostrar os gráficos
     print("\n🖼️ Exibindo gráficos...")
     plt.show()
@@ -198,7 +332,7 @@ def main():
     print(f"\n📊 RESUMO POR UNIDADE:")
     print("=" * 50)
     
-    for unit in df['Unidade'].unique():
+    for unit in df[df['Tipo_Analise'] == 'Por Unidade']['Unidade'].unique():
         unit_data = df[df['Unidade'] == unit]
         total_budget = unit_data['Budget_2025'].sum()
         total_actual = unit_data['Actual_2025'].sum()
@@ -210,9 +344,26 @@ def main():
         print(f"   💵 Actual Total: ${total_actual:.2f}M")
         print(f"   📉 Diferença: ${total_actual - total_budget:+.2f}M")
     
+    # Resumo consolidado
+    print(f"\n📊 RESUMO CONSOLIDADO:")
+    print("=" * 50)
+    consolidated_data = df[df['Tipo_Analise'] == 'Consolidado']
+    if not consolidated_data.empty:
+        total_budget_cons = consolidated_data['Budget_2025'].sum()
+        total_actual_cons = consolidated_data['Actual_2025'].sum()
+        items_count_cons = len(consolidated_data)
+        
+        print(f"\n🏢 CONSOLIDADO:")
+        print(f"   📊 {items_count_cons} itens")
+        print(f"   💰 Budget Total: ${total_budget_cons:.2f}M")
+        print(f"   💵 Actual Total: ${total_actual_cons:.2f}M")
+        print(f"   📉 Diferença: ${total_actual_cons - total_budget_cons:+.2f}M")
+        print(f"   📊 Percentual Médio: {((total_actual_cons / total_budget_cons) - 1) * 100:.1f}%")
+    
     print(f"\n📁 Arquivos gerados:")
     print(f"   📊 budget_vs_actual_por_unidade.png")
     print(f"   📈 diferenca_percentual_por_unidade.png")
+    print(f"   🏆 graficos_consolidados.png")
 
 if __name__ == "__main__":
     main()

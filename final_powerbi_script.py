@@ -24,10 +24,11 @@ Data: 2025
 
 import pandas as pd
 import numpy as np
+import os
 import warnings
 warnings.filterwarnings('ignore')
 
-def extract_budget_data():
+def extract_budget_data(excel_file):
     """
     Extrai dados dos sheets de budget especificados e prepara para Power BI
     """
@@ -75,8 +76,7 @@ def extract_budget_data():
         
         try:
             # Ler o sheet usando a linha 2 como cabeçalho
-            df = pd.read_excel('Consolidado_Actual x Forecast_2025_Versao Final_Julho_Dinho.xlsx', 
-                             sheet_name=sheet_name, header=2)
+            df = pd.read_excel(excel_file, sheet_name=sheet_name, header=2)
             
             # Identificar as colunas necessárias
             actual_col = None
@@ -155,33 +155,116 @@ def extract_budget_data():
     
     return all_data
 
+def create_consolidated_data(all_data):
+    """
+    Cria dados consolidados somando Budget e Actual por descrição
+    """
+    
+    print("\n📊 Criando dados consolidados...")
+    
+    # Converter para DataFrame
+    df = pd.DataFrame(all_data)
+    
+    # Agrupar por descrição e somar Budget e Actual
+    consolidated = df.groupby('Descricao').agg({
+        'Budget_2025': 'sum',
+        'Actual_2025': 'sum'
+    }).reset_index()
+    
+    # Calcular diferença e percentual
+    consolidated['Diferenca'] = consolidated['Actual_2025'] - consolidated['Budget_2025']
+    consolidated['Percentual_Diferenca'] = ((consolidated['Actual_2025'] / consolidated['Budget_2025']) - 1) * 100
+    
+    # Ordenar por Budget (maior para menor)
+    consolidated = consolidated.sort_values('Budget_2025', ascending=False)
+    
+    # Adicionar coluna de status
+    consolidated['Status'] = consolidated['Diferenca'].apply(
+        lambda x: "Acima do Budget" if x >= 0 else "Abaixo do Budget"
+    )
+    
+    # Adicionar colunas para compatibilidade
+    consolidated['Unidade'] = 'CONSOLIDADO'
+    consolidated['Sheet_Original'] = 'CONSOLIDADO'
+    consolidated['Tipo'] = 'Item'
+    
+    return consolidated
+
 def create_final_dataset(all_data):
     """
-    Cria o dataset final e salva os arquivos
+    Cria o dataset final com dados por unidade e consolidados
     """
     
     if not all_data:
         print("❌ Nenhum dado válido foi encontrado!")
         return None
     
-    # Criar DataFrame final
-    final_df = pd.DataFrame(all_data)
+    # Criar DataFrame para dados por unidade
+    df_individual = pd.DataFrame(all_data)
+    df_individual['Tipo_Analise'] = 'Por Unidade'
     
     # Ordenar por unidade e descrição
-    final_df = final_df.sort_values(['Unidade', 'Descricao'])
+    df_individual = df_individual.sort_values(['Unidade', 'Descricao'])
+    
+    # Criar dados consolidados
+    df_consolidado = create_consolidated_data(all_data)
+    df_consolidado['Tipo_Analise'] = 'Consolidado'
+    
+    # Combinar os dados
+    combined_df = pd.concat([df_individual, df_consolidado], ignore_index=True)
     
     # Salvar arquivo principal para Power BI
     output_file = 'budget_data_for_powerbi.csv'
-    final_df.to_csv(output_file, index=False, encoding='utf-8')
+    combined_df.to_csv(output_file, index=False, encoding='utf-8')
     
     print(f"\n✅ Dados extraídos com sucesso!")
-    print(f"📊 Total de registros: {len(final_df)}")
+    print(f"📊 Total de registros por unidade: {len(df_individual)}")
+    print(f"📊 Total de registros consolidados: {len(df_consolidado)}")
+    print(f"📊 Total de registros combinados: {len(combined_df)}")
     print(f"📁 Arquivo principal: {output_file}")
     
     # Mostrar dados por unidade (Budget vs Actual)
-    show_unit_data(final_df)
+    show_unit_data(df_individual)
     
-    return final_df
+    # Mostrar resumo consolidado
+    show_consolidated_summary(df_consolidado)
+    
+    return combined_df
+
+def show_consolidated_summary(consolidated_df):
+    """
+    Mostra resumo consolidado dos dados
+    """
+    
+    print(f"\n📊 RESUMO CONSOLIDADO - TODAS AS UNIDADES:")
+    print("=" * 80)
+    
+    # Calcular totais
+    total_budget = consolidated_df['Budget_2025'].sum()
+    total_actual = consolidated_df['Actual_2025'].sum()
+    total_difference = consolidated_df['Diferenca'].sum()
+    total_percentage = ((total_actual / total_budget) - 1) * 100 if total_budget != 0 else 0
+    
+    print(f"\n💰 TOTAIS CONSOLIDADOS:")
+    print(f"   Budget Total: ${total_budget:,.2f}M")
+    print(f"   Actual Total: ${total_actual:,.2f}M")
+    print(f"   Diferença Total: ${total_difference:+,.2f}M")
+    print(f"   Diferença Percentual: {total_percentage:+.2f}%")
+    
+    print(f"\n📋 DETALHAMENTO POR LINHA:")
+    print("-" * 80)
+    print(f"{'Descrição':<40} {'Budget Total':<15} {'Actual Total':<15} {'Diferença %':<12}")
+    print("-" * 80)
+    
+    for _, row in consolidated_df.iterrows():
+        desc = row['Descricao'][:37] + "..." if len(row['Descricao']) > 40 else row['Descricao']
+        budget = f"${row['Budget_2025']:,.2f}M"
+        actual = f"${row['Actual_2025']:,.2f}M"
+        pct = f"{row['Percentual_Diferenca']:+.1f}%"
+        
+        print(f"{desc:<40} {budget:<15} {actual:<15} {pct:<12}")
+    
+    return total_budget, total_actual, total_difference, total_percentage
 
 def show_unit_data(df):
     """
@@ -365,11 +448,28 @@ def main():
     Função principal do script
     """
     
+    import sys
+    
     print("🎯 Script Final para Extração de Dados de Budget - Power BI")
     print("=" * 70)
     
+    # Verificar se o arquivo Excel foi fornecido
+    if len(sys.argv) != 2:
+        print("❌ Uso: python final_powerbi_script.py <arquivo_excel.xlsx>")
+        print("📝 Exemplo: python final_powerbi_script.py Consolidado_Actual_x_Forecast_2025.xlsx")
+        sys.exit(1)
+    
+    excel_file = sys.argv[1]
+    
+    # Verificar se o arquivo Excel existe
+    if not os.path.exists(excel_file):
+        print(f"❌ Arquivo Excel não encontrado: {excel_file}")
+        sys.exit(1)
+    
+    print(f"📁 Arquivo Excel: {excel_file}")
+    
     # Extrair dados
-    all_data = extract_budget_data()
+    all_data = extract_budget_data(excel_file)
     
     if all_data:
         # Criar dataset final
@@ -384,7 +484,7 @@ def main():
             print("=" * 70)
             
             print(f"\n📁 Arquivos gerados:")
-            print(f"   🎯 budget_data_for_powerbi.csv (dados principais)")
+            print(f"   🎯 budget_data_for_powerbi.csv (dados por unidade + consolidados)")
             print(f"   📋 powerbi_setup_instructions.txt (instruções completas)")
             
             print(f"\n🎯 Próximos passos:")
@@ -394,8 +494,8 @@ def main():
             print(f"   4. 📊 Use as análises estatísticas para insights")
             print(f"   5. 🚀 Publique seu dashboard!")
             
-            print(f"\n💡 Dica: Comece com o dashboard principal e depois adicione")
-            print(f"   as visualizações detalhadas conforme necessário.")
+            print(f"\n💡 Dica: O CSV contém dados por unidade E consolidados.")
+            print(f"   Use a coluna 'Tipo_Analise' para filtrar entre 'Por Unidade' e 'Consolidado'.")
             
         else:
             print("❌ Erro ao criar dataset final!")

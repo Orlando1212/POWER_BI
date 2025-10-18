@@ -16,17 +16,17 @@ import os
 import warnings
 warnings.filterwarnings('ignore')
 
-def load_and_combine_data():
+def load_and_combine_data(excel_file):
     """
-    Gera os CSVs chamando os scripts e combina os dados
+    Executa o script final que lê o Excel e gera os dados combinados
     """
     
-    print("📊 Gerando dados dos scripts...")
+    print(f"📊 Executando script final para processar dados do Excel: {excel_file}")
     
-    # Executar script final usando subprocess
+    # Executar script final usando subprocess com o arquivo Excel como parâmetro
     print("\n🚀 Executando script final_powerbi_script.py...")
     import subprocess
-    result_final = subprocess.run(['python', 'final_powerbi_script.py'], 
+    result_final = subprocess.run(['python', 'final_powerbi_script.py', excel_file], 
                                  capture_output=True, text=True)
     if result_final.returncode != 0:
         print(f"❌ Erro ao executar final_powerbi_script.py: {result_final.stderr}")
@@ -34,51 +34,17 @@ def load_and_combine_data():
     else:
         print("✅ Script final executado com sucesso!")
     
-    # Executar script consolidado usando subprocess
-    print("\n🚀 Executando script_consolidado.py...")
-    result_consolidado = subprocess.run(['python', 'script_consolidado.py'], 
-                                       capture_output=True, text=True)
-    if result_consolidado.returncode != 0:
-        print(f"❌ Erro ao executar script_consolidado.py: {result_consolidado.stderr}")
-        return None
-    else:
-        print("✅ Script consolidado executado com sucesso!")
+    print("\n📊 Carregando dados combinados...")
     
-    print("\n📊 Carregando e combinando dados...")
-    
-    # Verificar se os arquivos foram criados
+    # Verificar se o arquivo foi criado
     if not os.path.exists('budget_data_for_powerbi.csv'):
         print("❌ Arquivo budget_data_for_powerbi.csv não foi criado!")
         return None
     
-    if not os.path.exists('dados_consolidados_budget.csv'):
-        print("❌ Arquivo dados_consolidados_budget.csv não foi criado!")
-        return None
+    # Carregar dados combinados (já contém dados por unidade + consolidados)
+    combined_df = pd.read_csv('budget_data_for_powerbi.csv')
     
-    # Carregar dados individuais por unidade
-    df_individual = pd.read_csv('budget_data_for_powerbi.csv')
-    
-    # Carregar dados consolidados
-    df_consolidado = pd.read_csv('dados_consolidados_budget.csv')
-    
-    # Adicionar identificador de tipo
-    df_individual['Tipo_Analise'] = 'Por Unidade'
-    df_consolidado['Tipo_Analise'] = 'Consolidado'
-    
-    # Adicionar coluna de unidade para consolidado
-    df_consolidado['Unidade'] = 'CONSOLIDADO'
-    
-    # Adicionar colunas que faltam no consolidado
-    df_consolidado['Sheet_Original'] = 'CONSOLIDADO'
-    df_consolidado['Tipo'] = 'Item'
-    
-    # Combinar os dados
-    combined_df = pd.concat([df_individual, df_consolidado], ignore_index=True)
-    
-    # Salvar CSV combinado
-    combined_df.to_csv('dados_combinados_powerbi.csv', index=False, encoding='utf-8')
-    
-    print(f"✅ Dados combinados salvos em: dados_combinados_powerbi.csv")
+    print(f"✅ Dados carregados do arquivo: budget_data_for_powerbi.csv")
     print(f"📊 Total de registros: {len(combined_df)}")
     
     return combined_df
@@ -550,11 +516,32 @@ def main():
     Função principal
     """
     
+    import sys
+    
     print("🎯 Script Combinado - Geração de Scripts Python para Power BI")
     print("=" * 70)
     
+    # Verificar se o arquivo Excel foi fornecido
+    if len(sys.argv) != 2:
+        print("❌ Uso: python script_combinado_powerbi.py <arquivo_excel.xlsx>")
+        print("📝 Exemplo: python script_combinado_powerbi.py Consolidado_Actual_x_Forecast_2025.xlsx")
+        sys.exit(1)
+    
+    excel_file = sys.argv[1]
+    
+    # Verificar se o arquivo Excel existe
+    if not os.path.exists(excel_file):
+        print(f"❌ Arquivo Excel não encontrado: {excel_file}")
+        sys.exit(1)
+    
+    print(f"📁 Arquivo Excel: {excel_file}")
+    
     # Carregar e combinar dados
-    combined_df = load_and_combine_data()
+    combined_df = load_and_combine_data(excel_file)
+    
+    if combined_df is None:
+        print("❌ Erro ao carregar dados!")
+        sys.exit(1)
     
     print(f"\n📊 Gerando scripts Python individuais...")
     
@@ -573,7 +560,7 @@ def main():
     print("=" * 70)
     
     print(f"\n📁 Arquivos gerados:")
-    print(f"   📊 dados_combinados_powerbi.csv (dados combinados)")
+    print(f"   📊 budget_data_for_powerbi.csv (dados combinados)")
     print(f"   🐍 script_1_budget_vs_actual_por_unidade.py")
     print(f"   🐍 script_2_performance_por_unidade.py")
     print(f"   🐍 script_3_consolidado_budget_vs_actual.py")
@@ -582,7 +569,7 @@ def main():
     print(f"   📋 GUIA_SCRIPTS_POWERBI.txt (instruções completas)")
     
     print(f"\n🎯 Como usar:")
-    print(f"   1. 📥 Importe 'dados_combinados_powerbi.csv' no Power BI")
+    print(f"   1. 📥 Importe 'budget_data_for_powerbi.csv' no Power BI")
     print(f"   2. 🐍 Use os scripts Python nos visuais")
     print(f"   3. 📖 Siga o guia GUIA_SCRIPTS_POWERBI.txt")
     print(f"   4. 🎨 Customize cores e tamanhos conforme necessário")
